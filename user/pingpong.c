@@ -8,7 +8,7 @@ int main(){
     if(fork()==0){
         char p[8];
         read(parent_fd[0],p,8);
-        printf("%d received %s\n",getpid(),p);
+        printf("%d: received %s\n",getpid(),p);
         char c[8]="pong";
         write(child_fd[1],c,8);
     }else{
@@ -16,7 +16,7 @@ int main(){
         write(parent_fd[1],p,8);
         char c[8];
         read(child_fd[0],c,8);
-        printf("%d received %s\n",getpid(),c);
+        printf("%d: received %s\n",getpid(),c);
     }
     exit();
 }
