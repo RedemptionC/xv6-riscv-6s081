@@ -267,6 +267,8 @@ myapi.key:
 		echo An API key should be 32 characters long.; \
 		false; \
 	fi;
+tarballname:
+	@SUF=$(LAB); \
+	echo lab-$$SUF-handin.tar.gz
 
-
-.PHONY: handin tarball-pref clean grade handin-check
+.PHONY: handin tarball-pref clean grade handin-check ppp
