@@ -20,21 +20,19 @@ int getcmd(char *buf, int nbuf)
 }
 char whitespace[] = " \t\r\n\v";
 char args[MAXARGS][MAXWORD];
+
 //*****************END  from sh.c ******************
-void setargs(char *cmd, char* argv[])
+void setargs(char *cmd, char* argv[],int* argc)
 {
     // 让argv的每一个元素都指向args的每一行
     for(int i=0;i<MAXARGS;i++){
         argv[i]=&args[i][0];
     }
-
     int i = 0; // 表示第i个word
     // int k = 0; // 表示word中第k个char
     int j = 0;
-
     for (; cmd[j] != '\n' && cmd[j] != '\0'; j++)
     {
-
         // 跳过之前的空格
         while (strchr(whitespace,cmd[j])){
             j++;
@@ -47,14 +45,38 @@ void setargs(char *cmd, char* argv[])
         cmd[j]='\0';
     }
     argv[i]=0;
-
+    *argc=i;
 }
 
 void runcmd(char *cmd)
 {
 
     char* argv[MAXARGS];
-    setargs(cmd, argv);
+    int argc=-1;
+    setargs(cmd, argv,&argc);
+    // 此时是仅处理一个命令：现在判断argv[1]开始，后面有没有> 
+    for(int i=1;i<argc;i++){
+        // 如果遇到 > ，说明需要执行输出重定向，首先需要关闭stdout
+        if(!strcmp(argv[i],">")){
+            close(1);
+            // 此时需要把输出重定向到后面给出的文件名对应的文件里
+            // 当然如果>是最后一个，那就会error，不过暂时先不考虑
+            open(argv[i+1],O_CREATE|O_WRONLY);
+            argv[i]=0;
+            break;
+        }
+        if(!strcmp(argv[i],"<")){
+            // 如果遇到< ,需要执行输入重定向，关闭stdin
+            close(0);
+            open(argv[i+1],O_RDONLY);
+            argv[i]=0;
+            break;
+        }
+        if(!strcmp(argv[i],"|")){
+            // 如果遇到 | 即pipe，至少说明后面还有一个命令要执行
+            // TODO
+        }
+    }
     exec(argv[0], argv);
 }
 
