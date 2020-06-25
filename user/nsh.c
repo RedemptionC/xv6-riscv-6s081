@@ -49,12 +49,15 @@ void setargs(char *cmd, char* argv[],int* argc)
     *argc=i;
 }
 
-void runcmd(char *cmd)
+// void runcmd(char *cmd)
+void runcmd(char*argv[],int argc)
 {
-
-    char* argv[MAXARGS];
-    int argc=-1;
-    setargs(cmd, argv,&argc);
+    for(int i=1;i<argc;i++){
+        if(!strcmp(argv[i],"|")){
+            // 如果遇到 | 即pipe，至少说明后面还有一个命令要执行
+            execPipe(argv,argc);
+        }
+    }
     // 此时是仅处理一个命令：现在判断argv[1]开始，后面有没有> 
     for(int i=1;i<argc;i++){
         // 如果遇到 > ，说明需要执行输出重定向，首先需要关闭stdout
@@ -73,17 +76,11 @@ void runcmd(char *cmd)
             argv[i]=0;
             break;
         }
-        if(!strcmp(argv[i],"|")){
-            // 如果遇到 | 即pipe，至少说明后面还有一个命令要执行
-            // TODO
-            execPipe(argv,argc);
-        }
     }
     exec(argv[0], argv);
 }
 
 void execPipe(char*argv[],int argc){
-    // char **sep=0;
     int i=0;
     // 首先找到命令中的"|",然后把他换成'\0'
     for(;i<argc;i++){
@@ -93,7 +90,6 @@ void execPipe(char*argv[],int argc){
         }
     }
     // 先考虑最简单的情况：cat file | wc
-    
     int fd[2];
     pipe(fd);
     if(fork()==0){
@@ -102,14 +98,16 @@ void execPipe(char*argv[],int argc){
         dup(fd[1]);
         close(fd[0]);
         close(fd[1]);
-        exec(argv[0],argv);
+        // exec(argv[0],argv);
+        runcmd(argv,i);
     }else{
         // 父进程 执行右边的命令 把自己的标准输入关闭
         close(0);
         dup(fd[0]);
         close(fd[0]);
         close(fd[1]);
-        exec(argv[i+1],argv+i+1);
+        // exec(argv[i+1],argv+i+1);
+        runcmd(argv+i+1,argc-i-1);
     }
 }
 int main()
@@ -120,7 +118,12 @@ int main()
     {
 
         if (fork() == 0)
-            runcmd(buf);
+        {
+            char* argv[MAXARGS];
+            int argc=-1;
+            setargs(buf, argv,&argc);
+            runcmd(argv,argc);
+        }
         wait(0);
     }
 
