@@ -2,6 +2,7 @@
 #include "user/user.h"
 #include "kernel/fcntl.h"
 
+void execPipe(char*argv[],int argc);
 //*****************START  from sh.c *******************
 
 
@@ -75,11 +76,42 @@ void runcmd(char *cmd)
         if(!strcmp(argv[i],"|")){
             // 如果遇到 | 即pipe，至少说明后面还有一个命令要执行
             // TODO
+            execPipe(argv,argc);
         }
     }
     exec(argv[0], argv);
 }
 
+void execPipe(char*argv[],int argc){
+    // char **sep=0;
+    int i=0;
+    // 首先找到命令中的"|",然后把他换成'\0'
+    for(;i<argc;i++){
+        if(!strcmp(argv[i],"|")){
+            argv[i]=0;
+            break;
+        }
+    }
+    // 先考虑最简单的情况：cat file | wc
+    
+    int fd[2];
+    pipe(fd);
+    if(fork()==0){
+        // 子进程 执行左边的命令 把自己的标准输出关闭
+        close(1);
+        dup(fd[1]);
+        close(fd[0]);
+        close(fd[1]);
+        exec(argv[0],argv);
+    }else{
+        // 父进程 执行右边的命令 把自己的标准输入关闭
+        close(0);
+        dup(fd[0]);
+        close(fd[0]);
+        close(fd[1]);
+        exec(argv[i+1],argv+i+1);
+    }
+}
 int main()
 {
     char buf[MAXLINE];
