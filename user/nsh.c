@@ -67,14 +67,14 @@ void runcmd(char*argv[],int argc)
             // 当然如果>是最后一个，那就会error，不过暂时先不考虑
             open(argv[i+1],O_CREATE|O_WRONLY);
             argv[i]=0;
-            break;
+            // break;
         }
         if(!strcmp(argv[i],"<")){
             // 如果遇到< ,需要执行输入重定向，关闭stdin
             close(0);
             open(argv[i+1],O_RDONLY);
             argv[i]=0;
-            break;
+            // break;
         }
     }
     exec(argv[0], argv);
