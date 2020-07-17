@@ -197,7 +197,7 @@ bd_free(void *p) {
     // bit_clear(bd_sizes[k].alloc, bi);  // free p at size k
     bit_toggle(bd_sizes[k].alloc, bi);  // free p at size k
     // if (bit_isset(bd_sizes[k].alloc, buddy)) {  // is buddy allocated?
-    if (bit_get(bd_sizes[k].alloc, bi)==1) {  // is buddy allocated?
+    if (bit_get(bd_sizes[k].alloc, bi)) {  // is buddy allocated?
       break;   // break out of loop               // as bi is already free,so if xor bit is 1,then buddy is allocated
     }
     // budy is free; merge with buddy
@@ -258,7 +258,7 @@ bd_mark(void *start, void *stop)
 
 // return 1 if addr is in range (left,right)
 int addr_in_range(void *addr,void *left,void *right){
-  return addr>=left&&addr<right;
+  return (addr>=left)&&(addr<right);
 }
 
 // If a block is marked as allocated and the buddy is free, put the
@@ -268,7 +268,7 @@ bd_initfree_pair(int k, int bi,void *left,void *right) {
   int buddy = (bi % 2 == 0) ? bi+1 : bi-1;
   int free = 0;
   // if(bit_isset(bd_sizes[k].alloc, bi) !=  bit_isset(bd_sizes[k].alloc, buddy)) {
-  if(bit_get(bd_sizes[k].alloc,bi)==1){
+  if(bit_get(bd_sizes[k].alloc,bi)){
     // one of the pair is free
     free = BLK_SIZE(k);
     if(addr_in_range(addr(k,bi),left,right)){
