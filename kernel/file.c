@@ -34,6 +34,7 @@ filealloc(void)
   acquire(&ftable.lock);
   f=bd_malloc(sizeof(struct file));
   if(f){
+    memset(f,0,sizeof(struct file));
     f->ref=1;
     release(&ftable.lock);
     return f;
@@ -77,7 +78,7 @@ fileclose(struct file *f)
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
-  bd_free(f);
+  
   release(&ftable.lock);
 
   if(ff.type == FD_PIPE){
@@ -87,6 +88,7 @@ fileclose(struct file *f)
     iput(ff.ip);
     end_op(ff.ip->dev);
   }
+  bd_free(f);
 }
 
 // Get metadata about file f.
