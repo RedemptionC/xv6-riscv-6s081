@@ -271,10 +271,11 @@ bd_initfree_pair(int k, int bi,void *left,void *right) {
   if(bit_get(bd_sizes[k].alloc,bi)){
     // one of the pair is free
     free = BLK_SIZE(k);
-    if(addr_in_range(addr(k,bi),left,right)){
-      lst_push(&bd_sizes[k].free, addr(k, bi)); 
-    }else{
+    // FIXIT why must check buddy first?
+    if(addr_in_range(addr(k,buddy),left,right)){
       lst_push(&bd_sizes[k].free, addr(k, buddy)); 
+    }else{
+      lst_push(&bd_sizes[k].free, addr(k, bi)); 
     }
     // if(bit_isset(bd_sizes[k].alloc, bi))
     //   lst_push(&bd_sizes[k].free, addr(k, buddy));   // put buddy on free list
