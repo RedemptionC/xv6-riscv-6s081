@@ -68,18 +68,34 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
+    // 如果没有分配页 这里的scause是15（0xf)
+    if(r_scause()==15||r_scause()==13){
+      printf("page fault write\n");
+      printf("BEFORE\n");
+      vmprint(p->pagetable,"");
+      uint64 addr=r_stval();
+      addr=PGROUNDDOWN(addr);
+      for(;addr<p->sz;addr+=PGSIZE){
+        char* mem=kalloc();
+        memset(mem, 0, PGSIZE);
+        mappages(p->pagetable, addr, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U);
+      }
+      printf("[AFTER]\n");
+      vmprint(p->pagetable,"");
+      goto ret;
+    }
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
-
+// end:
   if(p->killed)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
-
+ret:
   usertrapret();
 }
 
@@ -87,7 +103,7 @@ usertrap(void)
 // return to user space
 //
 void
-usertrapret(void)
+usertrapret(void) 
 {
   struct proc *p = myproc();
 
@@ -95,13 +111,13 @@ usertrapret(void)
   // now from kerneltrap() to usertrap().
   intr_off();
 
-  // send syscalls, interrupts, and exceptions to trampoline.S
+  // send syscalls, interrupts, and exceptions to trampoline.S stvec->uservec since we're back to user space
   w_stvec(TRAMPOLINE + (uservec - trampoline));
 
   // set up trapframe values that uservec will need when
   // the process next re-enters the kernel.
   p->tf->kernel_satp = r_satp();         // kernel page table
-  p->tf->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
+  p->tf->kernel_sp = p->kstack + PGSIZE; // process's kernel stack 所以内核栈的大小为一个页？
   p->tf->kernel_trap = (uint64)usertrap;
   p->tf->kernel_hartid = r_tp();         // hartid for cpuid()
 
