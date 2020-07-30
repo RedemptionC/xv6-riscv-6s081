@@ -70,32 +70,35 @@ usertrap(void)
   } else {
     // 如果没有分配页 这里的scause是15（0xf)
     if(r_scause()==15||r_scause()==13){
-      printf("page fault write\n");
-      printf("BEFORE\n");
-      vmprint(p->pagetable,"");
+      // printf("page fault write\n");
+      // printf("BEFORE\n");
+      // vmprint(p->pagetable,"");
       uint64 addr=r_stval();
       addr=PGROUNDDOWN(addr);
       for(;addr<p->sz;addr+=PGSIZE){
         char* mem=kalloc();
+        if(mem==0){
+          p->killed=1;
+          goto end;
+        }
         memset(mem, 0, PGSIZE);
         mappages(p->pagetable, addr, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U);
       }
-      printf("[AFTER]\n");
-      vmprint(p->pagetable,"");
-      goto ret;
+      // printf("[AFTER]\n");
+      // vmprint(p->pagetable,"");
+      goto end;
     }
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
-// end:
+end:
   if(p->killed)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
-ret:
   usertrapret();
 }
 
