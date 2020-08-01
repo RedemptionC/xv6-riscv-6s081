@@ -208,12 +208,12 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
     if((pte = walk(pagetable, a, 0)) == 0){
-      printf("uvmunmap: walk");
+      // printf("uvmunmap: walk");
       goto nextpage;
     }
       // panic("uvmunmap: walk");
     if((*pte & PTE_V) == 0){
-      printf("uvmunmap: not mapped va=%p pte=%p\n", a, *pte);
+      // printf("uvmunmap: not mapped va=%p pte=%p\n", a, *pte);
       // panic("uvmunmap: not mapped");
       goto nextpage;
     }
@@ -488,10 +488,10 @@ void printPage(pagetable_t pagetable,int depth){
   for(int i=0;i<512;i++){
     pte_t pte=pagetable[i];
     if(pte&PTE_V){
-      for(int i=0;i<depth-1;i++){
-        printf(".. ");
+      for(int i=0;i<depth;i++){
+        printf(" ..");
       }
-      printf("..");
+      // printf("..");
       uint64 pa=PTE2PA(pte);
       
       printf("%d: pte %p pa %p\n",i,pte&(~PTE_G),pa);

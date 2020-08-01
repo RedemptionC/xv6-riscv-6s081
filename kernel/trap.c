@@ -84,7 +84,8 @@ usertrap(void)
         goto end;
       }
       addr=PGROUNDDOWN(addr);
-      for(;addr<p->sz;addr+=PGSIZE){
+      // CORRECT: 这里只能分配一页，不然还是lazy allocation吗！
+      // for(;addr<p->sz;addr+=PGSIZE){
         char* mem=kalloc();
         if(mem==0){
           p->killed=1;
@@ -96,7 +97,7 @@ usertrap(void)
           p->killed=1;
           goto end;
         }
-      }
+      // }
       // printf("[AFTER]\n");
       // vmprint(p->pagetable,"");
       // goto end;
