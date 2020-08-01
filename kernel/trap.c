@@ -79,7 +79,8 @@ usertrap(void)
         p->killed=1;
         goto end;
       }
-      if(uvmcheck_guard(p->pagetable,addr)){
+      // if(uvmcheck_guard(p->pagetable,addr)){
+      if(addr<p->tf->sp){
         p->killed=1;
         goto end;
       }
