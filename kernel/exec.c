@@ -37,7 +37,7 @@ exec(char *path, char **argv)
 
   if((pagetable = proc_pagetable(p)) == 0)
     goto bad;
-  vmprint(pagetable,path);
+  // vmprint(pagetable,path);
   // Load program into memory.
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
@@ -69,9 +69,8 @@ exec(char *path, char **argv)
   if((sz = uvmalloc(pagetable, sz, sz + 2*PGSIZE)) == 0)
     goto bad;
   uvmclear(pagetable, sz-2*PGSIZE);
-  sp = sz;
-  stackbase = sp - PGSIZE;
-
+  sp = sz; // sz是栈顶
+  stackbase = sp - PGSIZE; // 注意 stakbase之下就是guardpage
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
@@ -80,20 +79,19 @@ exec(char *path, char **argv)
     sp -= sp % 16; // riscv sp must be 16-byte aligned
     if(sp < stackbase)
       goto bad;
-    if(copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
+    if(copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0) // 这里不应该是copyin？user to kernel？
       goto bad;
     ustack[argc] = sp;
   }
-  ustack[argc] = 0;
+  ustack[argc] = 0;// ustack里装的是0~n个参数的地址，以及一个null
 
   // push the array of argv[] pointers.
   sp -= (argc+1) * sizeof(uint64);
-  sp -= sp % 16;
+  sp -= sp % 16; // 预留出放ustack内容的位置
   if(sp < stackbase)
     goto bad;
   if(copyout(pagetable, sp, (char *)ustack, (argc+1)*sizeof(uint64)) < 0)
     goto bad;
-
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
@@ -109,9 +107,13 @@ exec(char *path, char **argv)
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;
   p->sz = sz;
+
   p->tf->epc = elf.entry;  // initial program counter = main
   p->tf->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
+  if(!strncmp(path,"/init",5)){
+    vmprint(pagetable,path);
+  }
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:

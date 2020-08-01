@@ -49,7 +49,7 @@ sys_sbrk(void)
   addr = myproc()->sz;
   myproc()->sz+=n;
   if(n<0){
-    myproc()->sz=uvmdealloc(myproc()->pagetable,addr,addr+myproc()->sz);    
+    myproc()->sz=uvmdealloc(myproc()->pagetable,addr,myproc()->sz);    
   }
   return addr;
 }

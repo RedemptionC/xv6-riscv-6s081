@@ -5,7 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
-
+#include "spinlock.h"
+#include "proc.h"
 /*
  * the kernel's page table.
  */
@@ -86,10 +87,10 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
     if(*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
-      if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
-        return 0;
+      if(!alloc || (pagetable = (pde_t*)kalloc()) == 0) //注意 这里如果分配了 那么pagetable已经改变了
+        return 0;                                       // 下一级要使用这个新申请的pagetable（空的for sure
       memset(pagetable, 0, PGSIZE);
-      *pte = PA2PTE(pagetable) | PTE_V;
+      *pte = PA2PTE(pagetable) | PTE_V;// 如果不存在 把新申请到页表的地址转换为pte，设置上一级的pte
     }
   }
   return &pagetable[PX(0, va)];
@@ -108,11 +109,30 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
-    return 0;
-  if((*pte & PTE_V) == 0)
-    return 0;
-  if((*pte & PTE_U) == 0)
+  if (pte == 0 || ((*pte & PTE_V) == 0))
+  {
+    if (va >= myproc()->sz)
+      return 0;
+
+    if (uvmcheck_guard(pagetable, va))
+      return 0;
+
+    uint64 a = PGROUNDDOWN(va);
+    char *mem = kalloc();
+    if (mem == 0)
+    {
+      return 0;
+    }
+    memset(mem, 0, PGSIZE);
+    if (mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W | PTE_X | PTE_R | PTE_U) != 0)
+    {
+      kfree(mem);
+      return 0;
+    }
+    pte = walk(pagetable, va, 0);
+  }
+
+  if ((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
   return pa;
@@ -187,11 +207,15 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
-    if((pte = walk(pagetable, a, 0)) == 0)
-      panic("uvmunmap: walk");
+    if((pte = walk(pagetable, a, 0)) == 0){
+      printf("uvmunmap: walk");
+      goto nextpage;
+    }
+      // panic("uvmunmap: walk");
     if((*pte & PTE_V) == 0){
-      printf("va=%p pte=%p\n", a, *pte);
-      panic("uvmunmap: not mapped");
+      printf("uvmunmap: not mapped va=%p pte=%p\n", a, *pte);
+      // panic("uvmunmap: not mapped");
+      goto nextpage;
     }
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
@@ -200,6 +224,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
       kfree((void*)pa);
     }
     *pte = 0;
+nextpage:
     if(a == last)
       break;
     a += PGSIZE;
@@ -326,9 +351,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
+      // panic("uvmcopy: pte should exist");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      continue;
+      // panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -357,6 +384,7 @@ uvmclear(pagetable_t pagetable, uint64 va)
   if(pte == 0)
     panic("uvmclear");
   *pte &= ~PTE_U;
+  *pte |= PTE_G;
 }
 
 // Copy from kernel to user.
@@ -460,18 +488,29 @@ void printPage(pagetable_t pagetable,int depth){
   for(int i=0;i<512;i++){
     pte_t pte=pagetable[i];
     if(pte&PTE_V){
-      for(int i=0;i<depth;i++){
+      for(int i=0;i<depth-1;i++){
         printf(".. ");
       }
+      printf("..");
       uint64 pa=PTE2PA(pte);
-      printf("%d: pte %p pa %p\n",i,pte,pa);
+      
+      printf("%d: pte %p pa %p\n",i,pte&(~PTE_G),pa);
       printPage((pagetable_t)pa,depth+1);
     }
   }
 }
 // print page table
 void vmprint(pagetable_t pagetable,char *s){
-  printf("[DEBUG] PATH : %s\n",s);
+  // printf("[DEBUG] PATH : %s\n",s);
   printf("page table %p\n",pagetable);
   printPage(pagetable,1);
+}
+
+int uvmcheck_guard(pagetable_t pagetable, uint64 va)
+{
+  pte_t *pte = walk(pagetable, va, 0);
+  if(pte==0){
+    return 0;
+  }
+  return (*pte) & PTE_G;
 }
