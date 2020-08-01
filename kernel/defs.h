@@ -62,7 +62,9 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit();
-
+#define         PHYPAGES 32723
+extern char cow_refcount[PHYPAGES];
+int             phypageindex(void *va);
 // log.c
 void            initlog(int, struct superblock*);
 void            log_write(struct buf*);
