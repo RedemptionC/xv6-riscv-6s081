@@ -75,7 +75,7 @@ kvminithart()
 //   21..39 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..12 -- 12 bits of byte offset within the page.
-static pte_t *
+pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
   if(va >= MAXVA)
@@ -320,30 +320,24 @@ int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
-  uint64 pa, i;
-  uint flags;
-  char *mem;
+  pte_t *npte;
+  uint64  i;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
-    }
+    (*pte)&=~PTE_W;
+    (*pte)|=PTE_COW;
+    npte=walk(new,i,1);
+    (*npte)=(*pte);
+    int i=phypageIndex((void *)PTE2PA(*pte));
+    cow_refcount[i]++;
   }
   return 0;
 
- err:
-  uvmunmap(new, 0, i, 1);
-  return -1;
+
 }
 
 // mark a PTE invalid for user access.
@@ -366,22 +360,52 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
-
-  while(len > 0){
-    va0 = PGROUNDDOWN(dstva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (dstva - va0);
-    if(n > len)
-      n = len;
-    memmove((void *)(pa0 + (dstva - va0)), src, n);
-
-    len -= n;
-    src += n;
-    dstva = va0 + PGSIZE;
+  va0 = PGROUNDDOWN(dstva);
+  pte_t *pte=walk(pagetable,va0,0);
+  if(pte==0||((*pte)&PTE_V)==0||((*pte)&PTE_U)==0){
+    printf("copyout : pte not exist or not accessible to user\n");
+    return -1;
   }
-  return 0;
+  if((*pte)&PTE_COW){
+    char *mem=kalloc();
+    if(mem==0){
+      printf("copyout: out of memory\n");
+      return -1;
+    }
+    uint64 pa=PTE2PA(*pte);
+    memmove((void*)mem,(void*)pa,PGSIZE);
+    // set PTE_W , unset PTW_COW
+    (*pte)|=PTE_W;
+    (*pte)&=~PTE_COW;
+    int perm=PTE_FLAGS((*pte));
+    (*pte)&=~PTE_V;
+    if(mappages(pagetable, va0, PGSIZE, (uint64)mem, perm) != 0){
+      kfree(mem);
+      return -1;
+    }
+    (*pte)|=PTE_V;
+    // 这里是从内核写到用户地址空间，要写用户的内存，src是内核的
+    kfree((void * )(PGROUNDUP(pa)));
+    return 0;
+  }else{
+    // not cow page
+    while(len > 0){
+      va0 = PGROUNDDOWN(dstva);
+      pa0 = walkaddr(pagetable, va0);
+      if(pa0 == 0)
+        return -1;
+      n = PGSIZE - (dstva - va0);
+      if(n > len)
+        n = len;
+      memmove((void *)(pa0 + (dstva - va0)), src, n);
+
+      len -= n;
+      src += n;
+      dstva = va0 + PGSIZE;
+    }
+    return 0;
+  }
+
 }
 
 // Copy from user to kernel.

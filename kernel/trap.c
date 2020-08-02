@@ -68,11 +68,44 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
+    if(r_scause()==15){
+      uint64 va=r_stval();
+      va=PGROUNDDOWN(va);
+      pte_t *pte=walk(p->pagetable,va,0);
+      // 如果pte不存在或者不是cow page,invalid,not accessible to user
+      if(pte==0||((*pte)&PTE_COW)==0||((*pte)&PTE_V)==0||((*pte)&PTE_U)==0){
+        printf("usertrap: pte not exist or it's not cow page\n");
+        p->killed=1;
+        goto end;
+      }
+      // TODO 这里的是父进程还是子进程？怎么修改另一者的pte？
+      // 一种做法是这里就修改自己的，父子进程都要重新申请一个页，并且复制
+      // 分配新的一个物理页，将旧页复制到新页,然后mappage
+      char *mem=kalloc();
+      if(mem==0){
+        printf("usertrap: out of memory\n");
+        p->killed=1;
+        goto end;
+      }
+      uint64 pa=PTE2PA(*pte);
+      memmove((void*)mem,(void*)pa,PGSIZE);
+      // set PTE_W , unset PTW_COW
+      (*pte)|=PTE_W;
+      (*pte)&=~PTE_COW;
+      int perm=PTE_FLAGS((*pte));
+      (*pte)&=~PTE_V;
+      if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, perm) != 0){
+        kfree(mem);
+        goto end;
+      }
+      kfree((void*)PGROUNDUP(pa));
+      (*pte)|=PTE_V;
+    }
+    // printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    // printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    // p->killed = 1;
   }
-
+end:
   if(p->killed)
     exit(-1);
 
