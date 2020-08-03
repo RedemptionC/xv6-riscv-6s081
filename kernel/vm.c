@@ -363,6 +363,9 @@ uvmclear(pagetable_t pagetable, uint64 va)
 int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
+  if(dstva>MAXVA){
+    return -1;
+  }
   while(len>0){
     uint64 n, va0, pa0;
     va0 = PGROUNDDOWN(dstva);
