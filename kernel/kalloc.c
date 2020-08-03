@@ -62,6 +62,8 @@ kfree(void *pa)
   if(cow_refcount[i]>1){
     cow_refcount[i]--;
     return;
+  }else{
+    cow_refcount[i]=0;
   }
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);

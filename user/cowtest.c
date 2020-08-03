@@ -132,6 +132,7 @@ filetest()
   buf[0] = 99;
 
   for(int i = 0; i < 4; i++){
+    printf("\n loop %d \n",i);
     if(pipe(fds) != 0){
       printf("pipe() failed\n");
       exit(-1);
@@ -150,7 +151,7 @@ filetest()
       sleep(1);
       int j = *(int*)buf;
       if(j != i){
-        printf("error: read the wrong value\n");
+        printf("error: read the wrong value expect %d but get %d\n",i,j);
         exit(1);
       }
       exit(0);
@@ -180,14 +181,14 @@ filetest()
 int
 main(int argc, char *argv[])
 {
-  simpletest();
+  // simpletest();
 
-  // check that the first simpletest() freed the physical memory.
-  simpletest();
+  // // check that the first simpletest() freed the physical memory.
+  // simpletest();
 
-  threetest();
-  threetest();
-  threetest();
+  // threetest();
+  // threetest();
+  // threetest();
 
   filetest();
 

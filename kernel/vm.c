@@ -367,25 +367,32 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
     return -1;
   }
   if((*pte)&PTE_COW){
-    char *mem=kalloc();
-    if(mem==0){
-      printf("copyout: out of memory\n");
-      return -1;
+    while(len>0){
+      char *mem=kalloc();
+      if(mem==0){
+        printf("copyout: out of memory\n");
+        return -1;
+      }
+      uint64 pa=PTE2PA(*pte);
+      // int n=len>PGSIZE?PGSIZE:len;
+      int n = PGSIZE - (dstva - va0);
+      if(n > len)
+         n = len;  
+      memmove((void*)mem,(void*)pa,n);
+      // set PTE_W , unset PTW_COW
+      (*pte)|=PTE_W;
+      (*pte)&=~PTE_COW;
+      int perm=PTE_FLAGS((*pte));
+      (*pte)&=~PTE_V;
+      if(mappages(pagetable, va0, PGSIZE, (uint64)mem, perm) != 0){
+        kfree(mem);
+        return -1;
+      }
+      (*pte)|=PTE_V;
+      len-=n;
+      // 这里是从内核写到用户地址空间，要写用户的内存，src是内核的
+      kfree((void * )(PGROUNDUP(pa)));
     }
-    uint64 pa=PTE2PA(*pte);
-    memmove((void*)mem,(void*)pa,PGSIZE);
-    // set PTE_W , unset PTW_COW
-    (*pte)|=PTE_W;
-    (*pte)&=~PTE_COW;
-    int perm=PTE_FLAGS((*pte));
-    (*pte)&=~PTE_V;
-    if(mappages(pagetable, va0, PGSIZE, (uint64)mem, perm) != 0){
-      kfree(mem);
-      return -1;
-    }
-    (*pte)|=PTE_V;
-    // 这里是从内核写到用户地址空间，要写用户的内存，src是内核的
-    kfree((void * )(PGROUNDUP(pa)));
     return 0;
   }else{
     // not cow page
