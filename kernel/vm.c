@@ -332,9 +332,13 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     (*pte)|=PTE_COW;
     npte=walk(new,i,1);
     (*npte)=(*pte);
-    int i=phypageIndex((void *)PTE2PA(*pte));
-    cow_refcount[i]++;
+    int index=phypageIndex((void *)PTE2PA(*pte));
+    // printf("%d : %d\n",i,index);
+    cow_refcount[index]++;
   }
+  // vmprint(old,"");
+  // vmprint(new,"");
+  
   return 0;
 
 
@@ -359,26 +363,22 @@ uvmclear(pagetable_t pagetable, uint64 va)
 int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
-  uint64 n, va0, pa0;
-  va0 = PGROUNDDOWN(dstva);
-  pte_t *pte=walk(pagetable,va0,0);
-  if(pte==0||((*pte)&PTE_V)==0||((*pte)&PTE_U)==0){
-    printf("copyout : pte not exist or not accessible to user\n");
-    return -1;
-  }
-  if((*pte)&PTE_COW){
-    while(len>0){
+  while(len>0){
+    uint64 n, va0, pa0;
+    va0 = PGROUNDDOWN(dstva);
+    pte_t *pte=walk(pagetable,va0,0);
+    if(pte==0||((*pte)&PTE_V)==0||((*pte)&PTE_U)==0){
+      printf("copyout : pte not exist or not accessible to user\n");
+      return -1;
+    }
+    pa0=PTE2PA(*pte);
+    if((*pte)&PTE_COW){
       char *mem=kalloc();
       if(mem==0){
         printf("copyout: out of memory\n");
         return -1;
       }
-      uint64 pa=PTE2PA(*pte);
-      // int n=len>PGSIZE?PGSIZE:len;
-      int n = PGSIZE - (dstva - va0);
-      if(n > len)
-         n = len;  
-      memmove((void*)mem,(void*)pa,n);
+      memmove(mem,(char *)pa0,PGSIZE);
       // set PTE_W , unset PTW_COW
       (*pte)|=PTE_W;
       (*pte)&=~PTE_COW;
@@ -389,30 +389,18 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
         return -1;
       }
       (*pte)|=PTE_V;
-      len-=n;
-      // 这里是从内核写到用户地址空间，要写用户的内存，src是内核的
-      kfree((void * )(PGROUNDUP(pa)));
+      pa0=(uint64)mem; // NOT SURE
     }
-    return 0;
-  }else{
-    // not cow page
-    while(len > 0){
-      va0 = PGROUNDDOWN(dstva);
-      pa0 = walkaddr(pagetable, va0);
-      if(pa0 == 0)
-        return -1;
-      n = PGSIZE - (dstva - va0);
-      if(n > len)
-        n = len;
-      memmove((void *)(pa0 + (dstva - va0)), src, n);
+    n = PGSIZE - (dstva - va0);
+    if(n > len)
+      n = len;
+    memmove((void *)(pa0 + (dstva - va0)), src, n);
 
-      len -= n;
-      src += n;
-      dstva = va0 + PGSIZE;
-    }
-    return 0;
+    len -= n;
+    src += n;
+    dstva = va0 + PGSIZE;
   }
-
+  return 0;
 }
 
 // Copy from user to kernel.
@@ -481,4 +469,29 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+void printPage(pagetable_t pagetable,int depth){
+  if(depth>3){
+    return;
+  }
+  // i -> pte index
+  for(int i=0;i<512;i++){
+    pte_t pte=pagetable[i];
+    if(pte&PTE_V){
+      for(int i=0;i<depth;i++){
+        printf(" ..");
+      }
+      // printf("..");
+      uint64 pa=PTE2PA(pte);
+      
+      printf("%d: pte %p pa %p\n",i,pte,pa);
+      printPage((pagetable_t)pa,depth+1);
+    }
+  }
+}
+// print page table
+void vmprint(pagetable_t pagetable,char *s){
+  // printf("[DEBUG] PATH : %s\n",s);
+  printf("page table %p\n",pagetable);
+  printPage(pagetable,1);
 }
