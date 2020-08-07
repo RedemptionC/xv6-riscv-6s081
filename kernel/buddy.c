@@ -257,8 +257,8 @@ bd_mark(void *start, void *stop)
 } 
 
 // return 1 if addr is in range (left,right)
-int addr_in_range(void *addr,void *left,void *right){
-  return (addr>=left)&&(addr<right);
+int addr_in_range(void *addr,void *left,void *right,int size){
+  return (addr>=left)&&((addr+size)<right);
 }
 
 // If a block is marked as allocated and the buddy is free, put the
@@ -271,11 +271,11 @@ bd_initfree_pair(int k, int bi,void *left,void *right) {
   if(bit_get(bd_sizes[k].alloc,bi)){
     // one of the pair is free
     free = BLK_SIZE(k);
-    // FIXIT why must check buddy first?
-    if(addr_in_range(addr(k,buddy),left,right)){
-      lst_push(&bd_sizes[k].free, addr(k, buddy)); 
-    }else{
+    // printf("bi (%p,%p,in range:%d)\tbuddy(%p,%p,in range:%d)\n",addr(k,bi),addr(k,bi)+free,addr_in_range(addr(k,bi),left,right,free),addr(k,buddy),addr(k,buddy)+free,addr_in_range(addr(k,buddy),left,right,free));
+    if(addr_in_range(addr(k,bi),left,right,free)){
       lst_push(&bd_sizes[k].free, addr(k, bi)); 
+    }else{
+      lst_push(&bd_sizes[k].free, addr(k, buddy)); 
     }
     // if(bit_isset(bd_sizes[k].alloc, bi))
     //   lst_push(&bd_sizes[k].free, addr(k, buddy));   // put buddy on free list
