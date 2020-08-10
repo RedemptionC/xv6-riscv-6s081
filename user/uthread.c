@@ -10,14 +10,56 @@
 #define STACK_SIZE  8192
 #define MAX_THREAD  4
 
+struct context {
+  uint64 ra;
+  uint64 sp;
+
+  // callee-saved
+  uint64 s0;
+  uint64 s1;
+  uint64 s2;
+  uint64 s3;
+  uint64 s4;
+  uint64 s5;
+  uint64 s6;
+  uint64 s7;
+  uint64 s8;
+  uint64 s9;
+  uint64 s10;
+  uint64 s11;
+};
+
 struct thread {
   char       stack[STACK_SIZE]; /* the thread's stack */
   int        state;             /* FREE, RUNNING, RUNNABLE */
+  struct context context;
 };
 struct thread all_thread[MAX_THREAD];
 struct thread *current_thread;
-extern void thread_switch(uint64, uint64);
-              
+extern void thread_switch(struct context *old, struct context *new);
+
+void printf_stats() {
+  struct thread *t;
+  for (t=all_thread; t < all_thread+MAX_THREAD; t++) {
+    switch (t->state)
+    {
+    case FREE:
+      printf(" | Free");
+      break;
+    case RUNNABLE:
+      printf(" | Runnable");
+      break;
+    case RUNNING:
+      printf(" | Running");
+      break;
+    default:
+      printf(" | Unkown(%d)", t->state);
+      break;
+    }
+  }
+  printf("\n");
+}
+
 void 
 thread_init(void)
 {
@@ -34,11 +76,11 @@ void
 thread_schedule(void)
 {
   struct thread *t, *next_thread;
-
+  // printf_stats();
   /* Find another runnable thread. */
   next_thread = 0;
   t = current_thread + 1;
-  for(int i = 0; i < MAX_THREAD; i++){
+  for(int i = 0; i < MAX_THREAD; i++){ // 不管当前线程是第几个，都要找一圈（环形）
     if(t >= all_thread + MAX_THREAD)
       t = all_thread;
     if(t->state == RUNNABLE) {
@@ -61,6 +103,7 @@ thread_schedule(void)
      * Invoke thread_switch to switch from t to next_thread:
      * thread_switch(??, ??);
      */
+    thread_switch(&t->context,&current_thread->context);
   } else
     next_thread = 0;
 }
@@ -71,10 +114,14 @@ thread_create(void (*func)())
   struct thread *t;
 
   for (t = all_thread; t < all_thread + MAX_THREAD; t++) {
-    if (t->state == FREE) break;
+    if (t->state == FREE) break;//选一个空闲线程出来（和新建进程里的allocproc差不多）
   }
   t->state = RUNNABLE;
   // YOUR CODE HERE
+  // 设置返回地址为func？
+  memset(&t->context,0,sizeof(t->context));
+  t->context.ra=(uint64)func;
+  t->context.sp=(uint64)((&t->stack))+STACK_SIZE;
 }
 
 void 
