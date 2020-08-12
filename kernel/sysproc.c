@@ -98,6 +98,7 @@ sys_uptime(void)
 
 uint64
 sys_sigreturn(void){
+  myproc()->ticksPassed=0;
   return 0;
 }
 
