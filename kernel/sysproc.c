@@ -99,22 +99,7 @@ sys_uptime(void)
 uint64
 sys_sigreturn(void){
   struct proc *p=myproc();
-  p->ticksPassed=0;
-  // p->tf->epc=p->tf->ra;
-  // p->tf->sp=p->oldContext.sp;
-  // p->tf->s0=p->oldContext.s0;
-  // p->tf->s1=p->oldContext.s1;
-  // p->tf->s2=p->oldContext.s2;
-  // p->tf->s3=p->oldContext.s3;
-  // p->tf->s4=p->oldContext.s4;
-  // p->tf->s5=p->oldContext.s5;
-  // p->tf->s6=p->oldContext.s6;
-  // p->tf->s7=p->oldContext.s7;
-  // p->tf->s8=p->oldContext.s8;
-  // p->tf->s9=p->oldContext.s9;
-  // p->tf->s10=p->oldContext.s10;
-  // p->tf->s11=p->oldContext.s11;
-  // p->tf->ra=p->oldContext.ra;
+  p->ticksPassed-=p->alarmInterval;
   *p->tf=p->oldContext;
   p->inHandler=0;
   return 0;
@@ -130,7 +115,7 @@ sys_sigalarm(void){
   if(argaddr(1,&handler)<0){
     return -1;
   }
-  myproc()->alarmHandler=handler;
+  myproc()->alarmHandler=(void(*)())handler;
   myproc()->alarmInterval=interval;
   return 0;
 }

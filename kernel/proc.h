@@ -104,7 +104,7 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   uint64 alarmInterval;
-  uint64 alarmHandler;         // 应该是函数指针还是uint64?
+  void(*alarmHandler)() ;         // 应该是函数指针还是uint64?
   uint64 ticksPassed;          // 自上次调用alarm handler，过去了多少个ticks 
   struct trapframe oldContext; 
   uint64 inHandler;            // 防止reentrant？
