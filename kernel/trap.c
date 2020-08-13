@@ -81,8 +81,8 @@ usertrap(void)
     struct proc *p=myproc();
     p->ticksPassed++;
     if(p->ticksPassed>=p->alarmInterval&&!p->inHandler){
-      p->tf->epc=(uint64)p->alarmHandler;
       p->oldContext=*p->tf;
+      p->tf->epc=(uint64)p->alarmHandler;
       p->inHandler=1;
     }
     yield();
