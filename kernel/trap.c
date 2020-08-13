@@ -81,11 +81,27 @@ usertrap(void)
     // printf("timer interrupt\n");
     struct proc *p=myproc();
     p->ticksPassed++;
-    if(p->ticksPassed==p->alarmInterval){
+    if(p->ticksPassed==p->alarmInterval&&!p->inHandler){
       // printf("try to call handler\n");
       uint64 handler=p->alarmHandler;
       // ((void (*)(void))handler)();
       p->tf->epc=handler;
+      p->oldContext=*p->tf;
+      p->inHandler=1;
+      // p->oldContext.sp=p->tf->sp;
+      // p->oldContext.s0=p->tf->s0;
+      // p->oldContext.s1=p->tf->s1;
+      // p->oldContext.s2=p->tf->s2;
+      // p->oldContext.s3=p->tf->s3;
+      // p->oldContext.s4=p->tf->s4;
+      // p->oldContext.s5=p->tf->s5;
+      // p->oldContext.s6=p->tf->s6;
+      // p->oldContext.s7=p->tf->s7;
+      // p->oldContext.s8=p->tf->s8;
+      // p->oldContext.s9=p->tf->s9;
+      // p->oldContext.s10=p->tf->s10;
+      // p->oldContext.s11=p->tf->s11;
+      // p->oldContext.ra=p->tf->ra;
     }
     yield();
   }

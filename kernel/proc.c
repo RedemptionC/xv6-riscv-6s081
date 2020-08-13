@@ -123,6 +123,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
   p->ticksPassed=0;
+  p->inHandler=0;
   return p;
 }
 

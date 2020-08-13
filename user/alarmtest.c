@@ -30,6 +30,7 @@ void
 periodic()
 {
   count = count + 1;
+  // printf("%d ",count);
   printf("alarm!\n");
   sigreturn();
 }
@@ -61,7 +62,11 @@ void __attribute__ ((noinline)) foo(int i, int *j) {
   if((i % 2500000) == 0) {
     write(2, ".", 1);
   }
+  // printf("[debug] foo is called\n");
   *j += 1;
+  // if(i!=*j){
+  //   printf("[debug] i!=j %d %d\n",i,*j);
+  // }
 }
 
 //
@@ -99,6 +104,7 @@ test1()
     // restored correctly, causing i or j or the address ofj
     // to get an incorrect value.
     printf("\ntest1 failed: foo() executed fewer times than it was called\n");
+    printf("[debug] i!=j %d %d\n",i,j);
     exit(1);
   } else {
     printf("test1 passed\n");
