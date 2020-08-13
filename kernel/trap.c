@@ -80,7 +80,7 @@ usertrap(void)
   if(which_dev == 2){
     struct proc *p=myproc();
     p->ticksPassed++;
-    if(p->ticksPassed>=p->alarmInterval&&!p->inHandler){
+    if(p->alarmInterval!=0&&p->ticksPassed>=p->alarmInterval&&!p->inHandler){
       p->oldContext=*p->tf;
       p->tf->epc=(uint64)p->alarmHandler;
       p->inHandler=1;
