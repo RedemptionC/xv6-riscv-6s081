@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "limits": "cpp",
+        "cstdlib": "c"
+    }
+}

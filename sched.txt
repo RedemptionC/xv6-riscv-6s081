@@ -1,0 +1,73 @@
+yield () at kernel/proc.c:521
+521	  struct proc *p = myproc();
+Temporary breakpoint 2 at 0x800025e0
+Continuing.
+
+Temporary breakpoint 2, 0x00000000800025e0 in swtch ()
+=> 0x00000000800025e0 <swtch+0>:	23 30 15 00	sd	ra,0(a0)
+$1 = (void (*)()) 0x80002082 <sched+124>
+Single stepping until exit from function swtch,
+which has no line number information.
+scheduler () at kernel/proc.c:473
+473	        c->proc = 0;
+$2 = {lock = {locked = 1, name = 0x80008430 "proc", cpu = 0x80014860 <cpus>, 
+    n = 364, nts = 0}, state = RUNNABLE, parent = 0x80014f40 <proc+736>, 
+  chan = 0x0, killed = 0, xstate = 0, pid = 4, kstack = 274877870080, 
+  sz = 12288, pagetable = 0x87fab000, tf = 0x87f7f000, context = {
+    ra = 2147491970, sp = 274877874048, s0 = 274877874096, s1 = 2147569840, 
+    s2 = 2147567680, s3 = 0, s4 = 37, s5 = 1, s6 = 12168, s7 = 2096, s8 = 100, 
+    s9 = 108, s10 = 120, s11 = 112}, ofile = {0x80020120 <ftable+32>, 
+    0x80020120 <ftable+32>, 0x80020120 <ftable+32>, 0x0 <repeats 13 times>}, 
+  cwd = 0x8001e2e0 <icache+32>, name = "spin", '\000' <repeats 11 times>}
+475	        found = 1;
+480	      c->intena = 0;
+482	      release(&p->lock);
+461	    for(p = proc; p < &proc[NPROC]; p++) {
+462	      acquire(&p->lock);
+463	      if(p->state == RUNNABLE) {
+480	      c->intena = 0;
+$3 = {lock = {locked = 1, name = 0x80008430 "proc", cpu = 0x80014860 <cpus>, 
+    n = 355, nts = 0}, state = UNUSED, parent = 0x0, chan = 0x0, killed = 0, 
+  xstate = 0, pid = 0, kstack = 274877861888, sz = 0, pagetable = 0x0, 
+  tf = 0x0, context = {ra = 0, sp = 0, s0 = 0, s1 = 0, s2 = 0, s3 = 0, s4 = 0, 
+    s5 = 0, s6 = 0, s7 = 0, s8 = 0, s9 = 0, s10 = 0, s11 = 0}, ofile = {
+    0x0 <repeats 16 times>}, cwd = 0x0, name = '\000' <repeats 15 times>}
+Temporary breakpoint 3 at 0x80001f94: file kernel/proc.c, line 467.
+Continuing.
+
+Temporary breakpoint 3, scheduler () at kernel/proc.c:467
+467	        p->state = RUNNING;
+$4 = {lock = {locked = 1, name = 0x80008430 "proc", cpu = 0x80014860 <cpus>, 
+    n = 370, nts = 0}, state = RUNNABLE, parent = 0x80014dd0 <proc+368>, 
+  chan = 0x0, killed = 0, xstate = 0, pid = 3, kstack = 274877878272, 
+  sz = 12288, pagetable = 0x87f7e000, tf = 0x87f9a000, context = {
+    ra = 2147491970, sp = 274877881936, s0 = 274877881984, s1 = 2147569472, 
+    s2 = 2147567680, s3 = 0, s4 = 37, s5 = 1, s6 = 12168, s7 = 2096, s8 = 100, 
+    s9 = 108, s10 = 120, s11 = 112}, ofile = {0x80020120 <ftable+32>, 
+    0x80020120 <ftable+32>, 0x80020120 <ftable+32>, 0x0 <repeats 13 times>}, 
+  cwd = 0x8001e2e0 <icache+32>, name = "spin", '\000' <repeats 11 times>}
+Structure has no component named operator*.
+$5 = {ra = 2147491970, sp = 274877881936, s0 = 274877881984, s1 = 2147569472, 
+  s2 = 2147567680, s3 = 0, s4 = 37, s5 = 1, s6 = 12168, s7 = 2096, s8 = 100, 
+  s9 = 108, s10 = 120, s11 = 112}
+$6 = {ra = 0x80002082, sp = 0x3fffff9e50, s0 = 0x3fffff9e80, s1 = 0x80014f40, 
+  s2 = 0x80014840, s3 = 0x0, s4 = 0x25, s5 = 0x1, s6 = 0x2f88, s7 = 0x830, 
+  s8 = 0x64, s9 = 0x6c, s10 = 0x78, s11 = 0x70}
+sched + 124 in section .text
+468	        c->proc = p;
+469	        swtch(&c->scheduler, &p->context);
+473	        c->proc = 0;
+$7 = (struct proc *) 0x80014f40 <proc+736>
+$8 = {lock = {locked = 1, name = 0x80008430 "proc", cpu = 0x80014860 <cpus>, 
+    n = 372, nts = 0}, state = RUNNABLE, parent = 0x80014dd0 <proc+368>, 
+  chan = 0x0, killed = 0, xstate = 0, pid = 3, kstack = 274877878272, 
+  sz = 12288, pagetable = 0x87f7e000, tf = 0x87f9a000, context = {
+    ra = 2147491970, sp = 274877881936, s0 = 274877881984, s1 = 2147569472, 
+    s2 = 2147567680, s3 = 0, s4 = 37, s5 = 1, s6 = 12168, s7 = 2096, s8 = 100, 
+    s9 = 108, s10 = 120, s11 = 112}, ofile = {0x80020120 <ftable+32>, 
+    0x80020120 <ftable+32>, 0x80020120 <ftable+32>, 0x0 <repeats 13 times>}, 
+  cwd = 0x8001e2e0 <icache+32>, name = "spin", '\000' <repeats 11 times>}
+475	        found = 1;
+Detaching from program: , process 1
+Ending remote debugging.
+[Inferior 1 (process 1) detached]
