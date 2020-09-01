@@ -42,6 +42,8 @@ binit(void)
   // Create linked list of buffers
   bcache.head.prev = &bcache.head;
   bcache.head.next = &bcache.head;
+  // 遍历buf数组，将每一个用头插法插入到链表中，head是头节点
+  // 之后都是通过访问链表，而不是数组buf来访问buffer
   for(b = bcache.buf; b < bcache.buf+NBUF; b++){
     b->next = bcache.head.next;
     b->prev = &bcache.head;
@@ -62,6 +64,7 @@ bget(uint dev, uint blockno)
   acquire(&bcache.lock);
 
   // Is the block already cached?
+  // 从前往后扫描，因为一个已缓存的块，假设他是最近使用的
   for(b = bcache.head.next; b != &bcache.head; b = b->next){
     if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
@@ -71,6 +74,7 @@ bget(uint dev, uint blockno)
     }
   }
 
+  // 从后往前找，因为是找一个不适用的块，那么他应该是最近没有使用的
   // Not cached; recycle an unused buffer.
   for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
     if(b->refcnt == 0) {
@@ -123,6 +127,7 @@ brelse(struct buf *b)
   b->refcnt--;
   if (b->refcnt == 0) {
     // no one is waiting for it.
+    // 下面做的就是把b从原来的位置取下来 放在链表开头（头插法）
     b->next->prev = b->prev;
     b->prev->next = b->next;
     b->next = bcache.head.next;
