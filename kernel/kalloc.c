@@ -23,7 +23,7 @@ struct kmem{
   struct run *freelist;
 };
 
-struct kmem kmems[NCPU];
+struct kmem kmems[3];
 
 int getcpu(){
   push_off();
@@ -32,12 +32,27 @@ int getcpu(){
   return cpu;
 }
 
+void printkmem(){
+  printf("###########################################\n");
+  for(int i=0;i<3;i++){
+    int c=0;
+    struct run *p=kmems[i].freelist;
+    while(p!=0){
+      p=p->next;
+      c++;
+    }
+    printf("cpu id %d : %d blocks\n",i,c);
+  }
+  printf("###########################################\n");
+  
+}
 void
 kinit()
 {
 
   printf("[kinit] cpu id %d\n",getcpu());
-  initlock(&kmems[getcpu()].lock, "kmem");
+  for(int i=0;i<3;i++)
+    initlock(&kmems[i].lock, "kmem");
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -66,28 +81,55 @@ kfree(void *pa)
   memset(pa, 1, PGSIZE);
 
   r = (struct run*)pa;
-
-  acquire(&kmems[getcpu()].lock);
-  r->next = kmems[getcpu()].freelist;
-  kmems[getcpu()].freelist = r;
-  release(&kmems[getcpu()].lock);
+  int hart=getcpu();
+  acquire(&kmems[hart].lock);
+  r->next = kmems[hart].freelist;
+  kmems[hart].freelist = r;
+  release(&kmems[hart].lock);
 }
 
+void *
+steal(int skip){
+  printf("cpu id %d\n",getcpu());
+  struct run * rs=0;
+  for(int i=0;i<3;i++){
+    // 当前cpu的锁已经在外面获取了，这里为了避免死锁，需要跳过
+    if(holding(&kmems[i].lock)){
+      continue;
+    }
+    acquire(&kmems[i].lock);
+    if(kmems[i].freelist!=0){
+      rs=kmems[i].freelist;
+      kmems[i].freelist=rs->next;
+      release(&kmems[i].lock);
+      return (void *)rs;
+    }
+    release(&kmems[i].lock);
+  }
+  // 不管还有没有，都直接返回，不用panic
+  return (void *)rs;
+}
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
 void *
 kalloc(void)
 {
-  printf("[kalloc] cpu id %d\n",getcpu());
-
+  // printf("[kalloc] cpu id %d\n",getcpu());
+  // printkmem();
   struct run *r;
-
-  acquire(&kmems[getcpu()].lock);
-  r = kmems[getcpu()].freelist;
+  int hart=getcpu();
+  acquire(&kmems[hart].lock);
+  r = kmems[hart].freelist;
   if(r)
-    kmems[getcpu()].freelist = r->next;
-  release(&kmems[getcpu()].lock);
+    kmems[hart].freelist = r->next;
+  else
+  {
+    // 当前cpu对应的freelist为空 需要从其他cpu对应的freelist借
+    r=steal(hart);
+  }
+  
+  release(&kmems[hart].lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
