@@ -89,14 +89,10 @@ kfree(void *pa)
 }
 
 void *
-steal(int skip){
+steal(){
   // printf("cpu id %d\n",getcpu());
   struct run * rs=0;
   for(int i=0;i<3;i++){
-    // 当前cpu的锁已经在外面获取了，这里为了避免死锁，需要跳过
-    if(holding(&kmems[i].lock)){
-      continue;
-    }
     acquire(&kmems[i].lock);
     if(kmems[i].freelist!=0){
       rs=kmems[i].freelist;
@@ -129,8 +125,6 @@ kalloc(void)
     // 当前cpu对应的freelist为空 需要从其他cpu对应的freelist借
     r=steal(hart);
   }
-  
-
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
