@@ -392,6 +392,7 @@ bmap(struct inode *ip, uint bn)
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+    // addr是间接块
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
@@ -399,6 +400,33 @@ bmap(struct inode *ip, uint bn)
       log_write(bp);
     }
     brelse(bp);
+    return addr;
+  }else{
+    bn-=NINDIRECT;
+    // 首先看二级表是否存在，如果不存在，就分配一个
+    uint dublyIndirect;
+    if((dublyIndirect = ip->addrs[NDIRECT+1]) == 0){
+      // 注意这里修改的是ip(inode)->addrs，修改的不是buffer，所以不需要log_write
+      dublyIndirect = ip->addrs[NDIRECT+1] = balloc(ip->dev);
+    }
+    // 把这个二级表读出来
+    bp=bread(ip->dev,dublyIndirect);
+    a=(uint*)bp->data;
+    // 算出bn对应一级表的index，然后再取一级表
+    uint singlyIndirect=bn/NINDIRECT;
+    if((addr=a[singlyIndirect])==0){
+      addr=a[singlyIndirect]=balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+    struct buf *p = bread(ip->dev,a[singlyIndirect]);
+    int i=bn%NINDIRECT;
+    a=(uint*)p->data;
+    if((addr=a[i])==0){
+      addr=a[i]=balloc(p->dev);
+      log_write(p);
+    }
+    brelse(p);
     return addr;
   }
 
@@ -435,7 +463,28 @@ itrunc(struct inode *ip)
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
   }
-
+  if(ip->addrs[NDIRECT+1]){
+    // 和bmap一样，首先读出二级表
+    bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    a = (uint*)bp->data;
+    for(j = 0; j < NINDIRECT; j++){
+      // a[j]保存的是一级表的地址
+      if(a[j]){
+        struct buf *p=bread(ip->dev,a[j]);
+        uint *c=(uint*)p->data;
+        for(int k=0;k<NINDIRECT;k++){
+          if(c[k]){
+            bfree(p->dev,c[k]);
+          }
+        }
+        brelse(p);
+        bfree(bp->dev,a[j]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT+1]);
+    ip->addrs[NDIRECT+1] = 0;
+  }
   ip->size = 0;
   iupdate(ip);
 }
