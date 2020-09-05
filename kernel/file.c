@@ -64,10 +64,13 @@ fileclose(struct file *f)
   acquire(&ftable.lock);
   if(f->ref < 1)
     panic("fileclose");
+  // 如果ref--之后，仍然大于0，那么直接返回
+  // 注意这个ref不是inode的
   if(--f->ref > 0){
     release(&ftable.lock);
     return;
   }
+  // ref=0了，inode的ref不一定为0，所以还需要iput（暂时不考虑inode之外的情况
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;
@@ -92,6 +95,7 @@ filestat(struct file *f, uint64 addr)
   
   if(f->type == FD_INODE || f->type == FD_DEVICE){
     ilock(f->ip);
+    // 将inode中一些数据复制到st中：dev,inum,nlink,type,size
     stati(f->ip, &st);
     iunlock(f->ip);
     if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
@@ -118,6 +122,7 @@ fileread(struct file *f, uint64 addr, int n)
       return -1;
     r = devsw[f->major].read(f, 1, addr, n);
   } else if(f->type == FD_INODE){
+    // 现在暂时只关注这里，使用readi读取n个字节
     ilock(f->ip);
     if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
       f->off += r;

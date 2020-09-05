@@ -194,7 +194,7 @@ static struct inode* iget(uint dev, uint inum);
 // Mark it as allocated by  giving it type type.
 // Returns an unlocked but allocated and referenced inode.
 struct inode*
-ialloc(uint dev, short type)
+ialloc(uint dev,short type)
 {
   int inum;
   struct buf *bp;
@@ -510,15 +510,19 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 {
   uint tot, m;
   struct buf *bp;
-
+  // 如果已经读到EOF，或者off是负数，那么错误
   if(off > ip->size || off + n < off)
     return -1;
+  // 如果剩下的不足n个字节，那么仅读完剩下的
   if(off + n > ip->size)
     n = ip->size - off;
 
   for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
+    // 把当前off对应的块读到buffer
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
+    // 本次循环要读的是 剩下的字节数 和 当前块剩下的字节数 中较小的一个
     m = min(n - tot, BSIZE - off%BSIZE);
+    // 根据user_dst的值，采用copyout（内核到用户空间）或者memmove（内核到内核，注意内核主要是直接映射）
     if(either_copyout(user_dst, dst, bp->data + (off % BSIZE), m) == -1) {
       brelse(bp);
       break;
@@ -537,9 +541,11 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
   uint tot, m;
   struct buf *bp;
-
+  // 如果off已经写到EOF，或者n为负数
   if(off > ip->size || off + n < off)
     return -1;
+  // MAXFILE是一个文件拥有的最多块数（直接块+间接块），乘以BSZIE，得到最多的字节数
+  // 写入之后不能超过上述最大值（这里没有选择截断到刚好写入到最大值，而是直接error
   if(off + n > MAXFILE*BSIZE)
     return -1;
 
@@ -557,6 +563,7 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   if(n > 0){
     if(off > ip->size)
       ip->size = off;
+    // size为什么会不改变？👈因为offset并不一定在EOF啊，所以加了n也不一定大于size
     // write the i-node back to disk even if the size didn't change
     // because the loop above might have called bmap() and added a new
     // block to ip->addrs[].
@@ -594,6 +601,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
       // entry matches path element
       if(poff)
         *poff = off;
+      // 根据name获取dirent的inum，然后使用iget获取对应inode
       inum = de.inum;
       return iget(dp->dev, inum);
     }
@@ -620,10 +628,11 @@ dirlink(struct inode *dp, char *name, uint inum)
   for(off = 0; off < dp->size; off += sizeof(de)){
     if(readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlink read");
+    // 找到一个空闲的dirent
     if(de.inum == 0)
       break;
   }
-
+  // 设置dirent的name和inum（是的，dirent本来也只有这两个属性
   strncpy(de.name, name, DIRSIZ);
   de.inum = inum;
   if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
@@ -656,7 +665,10 @@ skipelem(char *path, char *name)
     path++;
   if(*path == 0)
     return 0;
+  // s指向path中第一个不是/的字符
   s = path;
+  // path指向下一个/，然后计算出s和path之间的距离（即第一个元素的长度），将第一个
+  // 元素复制到name，最长复制DIRSIZE个
   while(*path != '/' && *path != 0)
     path++;
   len = path - s;
@@ -666,6 +678,7 @@ skipelem(char *path, char *name)
     memmove(name, s, len);
     name[len] = 0;
   }
+  // path移动到下一个不是/的字符
   while(*path == '/')
     path++;
   return path;
@@ -679,30 +692,35 @@ static struct inode*
 namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
-
+  // 根据绝对/相对路径 设置ip
   if(*path == '/')
     ip = iget(ROOTDEV, ROOTINO);
   else
     ip = idup(myproc()->cwd);
-
+  // skipelem的基本作用是，将一个按层次给出的路径字符串，如 /a/b/c
+  // 将下一个元素复制到name，如此时的下一个元素就是a，然后让path指向下下一个元素，path变成b/c
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     if(ip->type != T_DIR){
       iunlockput(ip);
       return 0;
     }
+    // path此时指向的是name的下一个元素，如果nameiparent为1，那么直接返回
     if(nameiparent && *path == '\0'){
       // Stop one level early.
       iunlock(ip);
       return ip;
     }
+    //parent为0，获取name（实际上是当前文件夹里一个dirent的名称）对应的inode
     if((next = dirlookup(ip, name, 0)) == 0){
       iunlockput(ip);
       return 0;
     }
     iunlockput(ip);
+    // 进入到下一级
     ip = next;
   }
+  // TODO 什么情况下会运行到这里？
   if(nameiparent){
     iput(ip);
     return 0;
