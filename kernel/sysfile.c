@@ -114,7 +114,10 @@ sys_fstat(void)
     return -1;
   return filestat(f, st);
 }
-
+int 
+sys_symlink(void){
+  return -1;
+}
 // Create the path new as a link to the same inode as old.
 uint64
 sys_link(void)
