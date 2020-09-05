@@ -95,3 +95,12 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int 
+sys_symlink(void){
+  char target[MAXPATH],path[MAXPATH];
+  if((argstr(0,target,MAXPATH)<0)||(argstr(1,path,MAXPATH)<0)){
+    return -1;
+  }
+  return 0;
+}
