@@ -63,13 +63,16 @@ testsymlink(void)
   printf("Start: test symlinks\n");
 
   mkdir("/testsymlink");
-
+  // 注意这里的区别，a是被链接到的，b是符号链接文件
+  // 写的时候，写到目标里，读的时候，打开的是符号链接文件
+  // 打开符号链接文件时，如果没有NOFOLLOW，就需要找到最终文件
   fd1 = open("/testsymlink/a", O_CREATE | O_RDWR);
   if(fd1 < 0) fail("failed to open a");
 
   r = symlink("/testsymlink/a", "/testsymlink/b");
   if(r < 0)
     fail("symlink b -> a failed");
+  
 
   if(write(fd1, buf, sizeof(buf)) != 4)
     fail("failed to write to a");
@@ -87,13 +90,15 @@ testsymlink(void)
     fail("failed to read bytes from b");
 
   unlink("/testsymlink/a");
+  // printf("open b : Should not be able to open b after deleting a\n");
   if(open("/testsymlink/b", O_RDWR) >= 0)
     fail("Should not be able to open b after deleting a");
-
+  // printf("link to form cycle\n");
   r = symlink("/testsymlink/b", "/testsymlink/a");
   if(r < 0)
     fail("symlink a -> b failed");
-
+    
+  // fprintf(2,"test cycle\n");
   r = open("/testsymlink/b", O_RDWR);
   if(r >= 0)
     fail("Should not be able to open b (cycle b->a->b->..)\n");
@@ -101,7 +106,7 @@ testsymlink(void)
   r = symlink("/testsymlink/nonexistent", "/testsymlink/c");
   if(r != 0)
     fail("Symlinking to nonexistent file should succeed\n");
-
+  // printf("debug 1 \n");
   r = symlink("/testsymlink/2", "/testsymlink/1");
   if(r) fail("Failed to link 1->2");
   r = symlink("/testsymlink/3", "/testsymlink/2");
@@ -114,6 +119,7 @@ testsymlink(void)
 
   fd1 = open("/testsymlink/4", O_CREATE | O_RDWR);
   if(fd1<0) fail("Failed to create 4\n");
+  // printf("debug \n");
   fd2 = open("/testsymlink/1", O_RDWR);
   if(fd2<0) fail("Failed to open 1\n");
 

@@ -135,7 +135,7 @@ sys_link(void)
     return -1;
 
   begin_op(ROOTDEV);
-  // 获取到路径中最后一个元素的inode
+  // 获取到old路径中最后一个元素的inode
   if((ip = namei(old)) == 0){
     end_op(ROOTDEV);
     return -1;
@@ -308,10 +308,34 @@ create(char *path, short type, short major, short minor)
   // 再把创建的文件（夹），在他所在的目录中创建对应的dirent
   if(dirlink(dp, name, ip->inum) < 0)
     panic("create: dirlink");
-
+  // 注意这里返回的是ip，仍然上锁
   iunlockput(dp);
 
   return ip;
+}
+
+struct inode *
+symfollow(struct inode * ip){
+  int symlinks=1;
+  struct inode *t;
+  while(1){
+    t=namei(ip->target);
+    if(t==0){
+      iunlock(ip);
+      return 0;
+    }
+    iunlock(ip);
+    ilock(t);
+    if(t->type!=T_SYMLINK){
+      break;
+    }
+    ip=t;
+    symlinks++;
+    if(symlinks>10){
+      return 0;
+    }
+  }
+  return t;
 }
 
 uint64
@@ -348,6 +372,13 @@ sys_open(void)
       iunlockput(ip);
       end_op(ROOTDEV);
       return -1;
+    }
+    if(ip->type == T_SYMLINK && (omode & O_NOFOLLOW)==0){
+      ip=symfollow(ip);
+      if(ip==0){
+        end_op(ROOTDEV);
+        return -1;
+      }
     }
   }
   // 如果是设备，那么设备号要合法
@@ -529,3 +560,29 @@ sys_pipe(void)
   return 0;
 }
 
+int 
+sys_symlink(void){
+  char target[MAXPATH],path[MAXPATH];
+  // target,path
+  // 在path指定的位置，新建一个链接文件，指向target
+  if((argstr(0,target,MAXPATH)<0)||(argstr(1,path,MAXPATH)<0)){
+    return -1;
+  }
+  struct inode *ip;
+
+  begin_op(ROOTDEV);
+  // 返回的ip仍然是上锁的，操作完成后应该解锁
+  if((ip=(create(path,T_SYMLINK,0,0)))==0){
+    end_op(ROOTDEV);
+    return -1;
+  }
+  int l=strlen(target);
+  if(l>MAXPATH){
+    l=MAXPATH;
+  }
+  memset(ip->target,0,MAXPATH);
+  memmove(ip->target,target,l);
+  iunlockput(ip);
+  end_op(ROOTDEV);
+  return 0;
+}

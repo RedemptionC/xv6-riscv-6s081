@@ -21,6 +21,7 @@ struct inode {
   int ref;            // Reference count
   struct sleeplock lock; // protects everything below here
   int valid;          // inode has been read from disk?
+  char target[MAXPATH]; // 如果是符号链接文件，在这里保存target路径
 
   short type;         // copy of disk inode
   short major;
