@@ -57,7 +57,8 @@ int main(int argc, char *argv[])
         printf("%d %s\n", i, params[i]);
       }
       printf("**************\n");
-
+      // argv应该是null-terminated
+      params[index]=0;
       exec(cmd, params);
       printf("exec fail!\n");
       exit();
