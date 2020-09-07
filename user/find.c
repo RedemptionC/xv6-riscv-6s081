@@ -26,8 +26,18 @@ fmtname(char *path)
   memset(buf+strlen(p), ' ', DIRSIZ-strlen(p));
   return buf;
 }
-
-
+// 返回path中最后一个斜杠之后的元素
+char *getLastElem(char *p){
+    char *t=p;
+    char *last=0;
+    while(*t!='\0'){
+        if(*t=='/'){
+            last=t;
+        }
+        t++;
+    }
+    return last+1;
+}
 void find(char* path,char *name){
     // printf("find (%s,,fmt(path):%s,fmtlen:%d,%s)\n",path,fmtname(path),strlen(fmtname(path)),name);
     char buf[512], *p=0;
@@ -47,7 +57,8 @@ void find(char* path,char *name){
     }
     switch(st.type){
     case T_FILE:
-        if(strcmp((path),name)==0)
+        p=getLastElem(path);
+        if(strcmp(p,name)==0)
             printf("%s\n",path);
         break;
 
@@ -63,6 +74,7 @@ void find(char* path,char *name){
         while(read(fd, &de, sizeof(de)) == sizeof(de)){
             if(de.inum == 0)
                 continue;
+            // 计算出当前dirent的路径
             memmove(p, de.name, DIRSIZ);
             p[DIRSIZ] = 0;
             if(stat(buf, &st) < 0){
@@ -73,9 +85,9 @@ void find(char* path,char *name){
             if(strcmp(de.name,".")==0||strcmp(de.name,"..")==0){
                 continue;
             }
-            if(strcmp(de.name,name)==0){
-                printf("%s/%s\n",path,name);
-            }
+            // if(strcmp(de.name,name)==0){
+            //     printf("%s/%s\n",path,name);
+            // }
             find(buf,name);
         }
         break;
