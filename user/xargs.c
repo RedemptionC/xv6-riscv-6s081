@@ -17,6 +17,8 @@ int main(int argc, char *argv[])
     printf("%d %s\n", i, argv[i]);
   }
   printf("**************\n");
+  // xarg的第一个参数 就是要执行的命令
+  // 其余的是该程序运行的参数
   char *cmd = argv[1];
   // line是作为参数使用的
   char line[LINE];
@@ -36,7 +38,6 @@ int main(int argc, char *argv[])
   {
     if (fork() == 0)
     {
-      // TODO: 这里应该创建一个新的内存空间，保存新进入的参数，还是\0结尾
       char *t = (char *)malloc(sizeof(char) * LINE);
       int c = 0;
       for (int i = 0; i < n; i++)
@@ -48,6 +49,7 @@ int main(int argc, char *argv[])
         t[c++] = line[i];
       }
       t[c] = '\0';
+      // 从标准输入读进来的也放进params
       params[index++] = t;
       printf("**********\n");
       for (int i = 0; i < index; i++)
