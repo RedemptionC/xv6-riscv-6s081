@@ -11,12 +11,7 @@ int main(int argc, char *argv[])
   {
     exit();
   }
-  printf("**********\n");
-  for (int i = 0; i < argc; i++)
-  {
-    printf("%d %s\n", i, argv[i]);
-  }
-  printf("**************\n");
+
   // xarg的第一个参数 就是要执行的命令
   // 其余的是该程序运行的参数
   char *cmd = argv[1];
@@ -40,24 +35,21 @@ int main(int argc, char *argv[])
     {
       char *t = (char *)malloc(sizeof(char) * LINE);
       int c = 0;
-      for (int i = 0; i < n; i++)
+      int i=0;
+      for (; i < n; i++)
       {
         if (line[i] == '\n' || line[i] == ' ')
         {
-          break;
-        }
-        t[c++] = line[i];
+          t[c]='\0';
+          // 从标准输入读进来的也放进params
+          params[index++] = t;
+          // memset(t,0,LINE);
+          c=0;
+          t = (char *)malloc(sizeof(char) * LINE);
+        }else
+          t[c++] = line[i];
       }
       t[c] = '\0';
-      // 从标准输入读进来的也放进params
-      params[index++] = t;
-      printf("**********\n");
-      for (int i = 0; i < index; i++)
-      {
-        printf("%d %s\n", i, params[i]);
-      }
-      printf("**************\n");
-      // argv应该是null-terminated
       params[index]=0;
       exec(cmd, params);
       printf("exec fail!\n");
