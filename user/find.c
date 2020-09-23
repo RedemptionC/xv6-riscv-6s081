@@ -6,6 +6,8 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/fs.h"
+#include "kernel/fcntl.h"
+
 
 // 返回path中最后一个斜杠之后的元素
 char *getLastElem(char *p){
@@ -30,7 +32,7 @@ void find(char* path,char *name){
     struct dirent de;
     struct stat st;
 
-    if((fd = open(path, 0)) < 0){
+    if((fd = open(path, O_RDONLY)) < 0){
         fprintf(2, "ls: cannot open %s\n", path);
         return;
     }
